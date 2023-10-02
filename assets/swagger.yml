@@ -1,0 +1,122 @@
+openapi: 3.0.0
+info:
+  title: Swagger Diffida - OpenAPI 3.0
+  description: |-
+    This API aims to allow you to sign a message with a private key and public key.
+
+  version: 0.1.0
+servers:
+  - url: https://diffida.shuttleapp.rs
+tags:
+  - name: signing
+    description: Generate & sign messages
+  - name: user
+    description: Operations about user
+paths:
+  /api/generate:
+    get:
+      tags:
+        - signing
+      description: Generate an mnemonic
+      operationId: generate
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateResponse'
+  /api/sign:
+    post:
+      tags:
+        - signing
+      description: Sign a message via mnemonic
+      operationId: sign
+      requestBody:
+        description: Message and mnemonic
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignRequest'
+        required: true
+      responses:
+        '200':
+          description: Contains the public_key and the signature
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignResponse'
+  /api/verify:
+    post:
+      tags:
+        - signing
+      description: Verify a message starting from the signature
+      operationId: verify
+      requestBody:
+        description: Verify payload
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyResponse'
+components:
+  schemas:
+    GenerateResponse:
+      type: object
+      properties:
+        mnemonic:
+          type: array
+          items:
+            format: String
+            example: [["scrutinio","casaccio","cedibile","oste","tumulto","irrorare","notturno","uffa","doganale","classico","esercito","vibrante"]]
+    SignRequest:
+      type: object
+      properties:
+        mnemonic:
+          type: array
+          items:
+            format: String
+            example: ["scrutinio","casaccio","cedibile","oste","tumulto","irrorare","notturno","uffa","doganale","classico","esercito","vibrante"]
+        message:
+          type: string
+          example: [Hello world]
+    SignResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: [Hello world]
+        signature:
+          type: string
+          example: [OsOFNZ5YrRRyJBXu4tJa2JoMOLFZNRJvVQqTXyz9GWnlA/O+zVcQWBC82Z/vx34ct7gmCqmuEFdHv4W/KxP8iA]
+        public_key:
+          type: string
+          example: [aunJC738czUPHZoZmPBCFm6WVoTCwXGKg2NBdqpV5k4]
+    VerifyRequest:
+      type: object
+      properties:
+        signature:
+          type: string
+          example: [Hello world]
+        message:
+          type: string
+          example: [UBYHg5Tgeywbm8K5HHEdIM4jnS8sbrnP+yB0a6oGp1FJnukFxtNFzX8XrmRhm92jzbyxWHxKTMZoyAKG+oJyjA]
+        public_key:
+          type: string
+          example: [ag1DFUCYJ9obNA5eWrhQqhzifFr41DesUD6BxsdwPBE]
+    VerifyResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: [Hello world]
+        match:
+          type: boolean
+          example: [true]

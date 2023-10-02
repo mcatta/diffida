@@ -16,11 +16,17 @@ const LANGUAGE: Language = Language::Italian;
 #[shuttle_runtime::main]
 async fn axum() -> shuttle_axum::ShuttleAxum {
     let router = Router::new()
+        .route("/doc", get(get_doc_file))
         .route("/api/generate", get(generate_seed))
         .route("/api/sign", post(sign_message))
         .route("/api/verify", post(verify_message));
 
     Ok(router.into())
+}
+
+async fn get_doc_file() -> String {
+    read_to_string("assets/swagger.yml")
+        .expect("Failure fetching the file")
 }
 
 /**
@@ -43,7 +49,7 @@ async fn generate_seed() -> impl IntoResponse {
  * @param payload Body
  */
 async fn sign_message(Json(payload): Json<SignMessagePayload>) -> impl IntoResponse {
-    let mnemonic: Mnemonic = Mnemonic::from_phrase(&payload.mnemonic, LANGUAGE)
+    let mnemonic: Mnemonic = Mnemonic::from_phrase(&payload.mnemonic.join(" "), LANGUAGE)
         .expect("Invalid passphrase");
 
     let key_pair: Keypair = mini_secret_from_entropy(mnemonic.entropy(), "")
@@ -112,7 +118,7 @@ fn decode_hash_32(str: String) -> [u8; 32] {
 #[derive(Deserialize)]
 struct SignMessagePayload {
     message: String,
-    mnemonic: String
+    mnemonic: Vec<String>
 }
 
 #[derive(Deserialize)]
