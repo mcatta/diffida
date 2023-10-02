@@ -43,7 +43,7 @@ async fn generate_seed() -> impl IntoResponse {
         "mnemonic": words
     };
     
-    create_json_response(response)
+    create_json_response(response).into_response()
 }
 
 /**
@@ -63,17 +63,15 @@ async fn sign_message(Json(payload): Json<SignMessagePayload>) -> impl IntoRespo
             let hashed_signature = general_purpose::STANDARD_NO_PAD.encode(signature);
             let public_key = general_purpose::STANDARD_NO_PAD.encode(key_pair.public.to_bytes());
         
-            let response = object! {
+            let response: JsonValue = object! {
                 "message": payload.message,
                 "signature": hashed_signature,
                 "public_key": public_key
             };
 
-            create_json_response(response);
+            create_json_response(response).into_response()
         },
-        Err(_) => {
-            (StatusCode::BAD_REQUEST, "".to_string());
-        }
+        Err(_) => bad_request().into_response(),
     }
 }
 
@@ -113,16 +111,12 @@ async fn verify_message(Json(payload): Json<VerifyMessagePayload>) -> impl IntoR
                         "match": matched_signature
                     };
                     
-                    create_json_response(response);
+                    create_json_response(response).into_response()
                 },
-                Err(_) => {
-                    (StatusCode::BAD_REQUEST, "".to_string());
-                },
-            };
+                Err(_) => bad_request().into_response(),
+            }
         },
-        Err(_) => {
-            (StatusCode::BAD_REQUEST, "".to_string());
-        },
+        Err(_) => bad_request().into_response(),
     }
 }
 
@@ -130,6 +124,10 @@ fn create_json_response(json: JsonValue) -> impl IntoResponse {
     let mut headers = HeaderMap::new();
     headers.insert(header::CONTENT_TYPE, "application/json".parse().unwrap());
     (headers, json::stringify(json))
+}
+
+fn bad_request() -> impl IntoResponse {
+    (StatusCode::BAD_REQUEST, "".to_string())
 }
 
 fn decode_hash(str: &String) -> Result<Vec<u8>, Error> {
@@ -185,7 +183,7 @@ mod tests {
         
         // When
         let result = rt.block_on(sign_message(Json(payload)));
-        assert!(result.into_response().status().is_success());
+        assert!(!result.into_response().status().is_success());
     }
 
     #[test]
@@ -219,7 +217,7 @@ mod tests {
         let result = rt.block_on(verify_message(Json(payload)));
 
         // Then
-        assert!(result.into_response().status().is_success());
+        assert!(!result.into_response().status().is_success());
     }
 
     #[test]
