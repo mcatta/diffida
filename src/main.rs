@@ -150,3 +150,87 @@ struct VerifyMessagePayload {
     public_key: String,
     signature: String
 }
+
+#[cfg(test)]
+mod tests {
+    use tokio::runtime::Runtime;
+
+    use super::*;
+
+    #[test]
+    fn test_sign_message() {
+        // Given
+        let rt = Runtime::new().unwrap();
+        let words: Vec<String>  = "scrutinio casaccio cedibile oste tumulto irrorare notturno uffa doganale classico esercito vibrante".split(" ").map(|s| s.to_string()).collect();
+        let payload = SignMessagePayload {
+            message: "Hello, world!".to_string(),
+            mnemonic: words,
+        };
+
+        // When
+        let result = rt.block_on(sign_message(Json(payload)));
+
+        // Then
+        assert!(result.into_response().status().is_success());
+    }
+
+    #[test]
+    fn test_sign_message_empty_params() {
+        // Given
+        let rt = Runtime::new().unwrap();
+        let payload = SignMessagePayload {
+            message: "Hello, world!".to_string(),
+            mnemonic: vec![],
+        };
+        
+        // When
+        let result = rt.block_on(sign_message(Json(payload)));
+        assert!(result.into_response().status().is_success());
+    }
+
+    #[test]
+    fn test_verify_message() {
+        // Given
+        let rt = Runtime::new().unwrap();
+        let payload = VerifyMessagePayload {
+            message: "Hello, world!".to_string(),
+            public_key: "ag1DFUCYJ9obNA5eWrhQqhzifFr41DesUD6BxsdwPBE".to_string(),
+            signature: "UBYHg5Tgeywbm8K5HHEdIM4jnS8sbrnP+yB0a6oGp1FJnukFxtNFzX8XrmRhm92jzbyxWHxKTMZoyAKG+oJyjA".to_string(),
+        };
+
+        // When
+        let result = rt.block_on(verify_message(Json(payload)));
+
+        // Then
+        assert!(result.into_response().status().is_success());
+    }
+
+    #[test]
+    fn test_verify_message_empty_params() {
+        // Given
+        let rt = Runtime::new().unwrap();
+        let payload = VerifyMessagePayload {
+            message: "Hello, world!".to_string(),
+            public_key: "".to_string(),
+            signature: "".to_string(),
+        };
+
+        // When
+        let result = rt.block_on(verify_message(Json(payload)));
+
+        // Then
+        assert!(result.into_response().status().is_success());
+    }
+
+    #[test]
+    fn test_generate_seed() {
+        // Given
+        let rt = Runtime::new().unwrap();
+
+        // When
+        let result = rt.block_on(generate_seed());
+
+        // Then
+        assert!(result.into_response().status().is_success());
+    }
+}
