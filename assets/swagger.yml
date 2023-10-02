@@ -75,7 +75,7 @@ components:
           type: array
           items:
             format: String
-            example: [["scrutinio","casaccio","cedibile","oste","tumulto","irrorare","notturno","uffa","doganale","classico","esercito","vibrante"]]
+            example: "scrutinio"
     SignRequest:
       type: object
       properties:
@@ -83,40 +83,40 @@ components:
           type: array
           items:
             format: String
-            example: ["scrutinio","casaccio","cedibile","oste","tumulto","irrorare","notturno","uffa","doganale","classico","esercito","vibrante"]
+            example: "scrutinio"
         message:
           type: string
-          example: [Hello world]
+          example: Hello world
     SignResponse:
       type: object
       properties:
         message:
           type: string
-          example: [Hello world]
+          example: Hello world
         signature:
           type: string
-          example: [OsOFNZ5YrRRyJBXu4tJa2JoMOLFZNRJvVQqTXyz9GWnlA/O+zVcQWBC82Z/vx34ct7gmCqmuEFdHv4W/KxP8iA]
+          example: OsOFNZ5YrRRyJBXu4tJa2JoMOLFZNRJvVQqTXyz9GWnlA/O+zVcQWBC82Z/vx34ct7gmCqmuEFdHv4W/KxP8iA
         public_key:
           type: string
-          example: [aunJC738czUPHZoZmPBCFm6WVoTCwXGKg2NBdqpV5k4]
+          example: aunJC738czUPHZoZmPBCFm6WVoTCwXGKg2NBdqpV5k4
     VerifyRequest:
       type: object
       properties:
         signature:
           type: string
-          example: [Hello world]
+          example: Hello world
         message:
           type: string
-          example: [UBYHg5Tgeywbm8K5HHEdIM4jnS8sbrnP+yB0a6oGp1FJnukFxtNFzX8XrmRhm92jzbyxWHxKTMZoyAKG+oJyjA]
+          example: UBYHg5Tgeywbm8K5HHEdIM4jnS8sbrnP+yB0a6oGp1FJnukFxtNFzX8XrmRhm92jzbyxWHxKTMZoyAKG+oJyjA
         public_key:
           type: string
-          example: [ag1DFUCYJ9obNA5eWrhQqhzifFr41DesUD6BxsdwPBE]
+          example: ag1DFUCYJ9obNA5eWrhQqhzifFr41DesUD6BxsdwPBE
     VerifyResponse:
       type: object
       properties:
         message:
           type: string
-          example: [Hello world]
+          example: Hello world
         match:
           type: boolean
-          example: [true]
+          example: true
