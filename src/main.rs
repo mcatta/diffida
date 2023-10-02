@@ -1,13 +1,13 @@
 use std::fs::read_to_string;
 
-use anyhow::{Error, Ok};
+use anyhow::Error;
 use axum::{routing::get, routing::post, Router, response::IntoResponse, http::{HeaderMap, header, StatusCode}, Json};
 use bip39::{Mnemonic, MnemonicType, Language};
 use json::JsonValue;
 use schnorrkel::{keys, Keypair, Signature, PublicKey};
 use substrate_bip39::mini_secret_from_entropy;
 use serde::Deserialize;
-use base64::{Engine as _, engine::general_purpose, DecodeError};
+use base64::{Engine, engine::general_purpose};
 
 #[macro_use]
 extern crate json;
@@ -83,23 +83,47 @@ async fn sign_message(Json(payload): Json<SignMessagePayload>) -> impl IntoRespo
  * @param payload
  */
 async fn verify_message(Json(payload): Json<VerifyMessagePayload>) -> impl IntoResponse {
-    let public_key = PublicKey::from_bytes(&decode_hash_32(payload.public_key))
-        .expect("Invalid public_key");
+    let public_key_result: Result<PublicKey, Error> = decode_hash(&payload.public_key)
+        .and_then(|v: Vec<u8>| -> Result<[u8; 32], _> { 
+            v.as_slice()    
+                .try_into()
+                .map_err(|_| Error::msg("Invalid public key"))
+        })
+        .and_then(|h: [u8; 32]| -> Result<PublicKey, _> { 
+            PublicKey::from_bytes(&h).map_err(|_| Error::msg("Invalid public key"))
+        });
 
-    let signature = Signature::from_bytes(&decode_hash_64(payload.signature))
-        .expect("Failed signature decoding");
+    let signature_result: Result<Signature, Error> = decode_hash(&payload.signature)
+        .and_then(|v: Vec<u8>| -> Result<[u8; 64], _> { 
+            v.as_slice()    
+                .try_into()
+                .map_err(|_| Error::msg("Invalid signature key"))
+        })
+        .and_then(|h: [u8; 64]| -> Result<Signature, _> { 
+            Signature::from_bytes(&h).map_err(|_| Error::msg("Invalid signature key"))
+        });
 
-    let match_result = match public_key.verify_simple(&[], &payload.message.as_bytes(), &signature) {
-        Ok(_) => true,
-        Err(_) => false,
-    };
-
-    let response = object! {
-        "message": payload.message,
-        "match": match_result
-    };
-    
-    create_json_response(response)
+    match public_key_result {
+        Ok(public_key) => {
+            match signature_result {
+                Ok(signature) => {
+                    let matched_signature = public_key.verify_simple(&[], &payload.message.as_bytes(), &signature).is_ok();
+                    let response = object! {
+                        "message": payload.message,
+                        "match": matched_signature
+                    };
+                    
+                    create_json_response(response);
+                },
+                Err(_) => {
+                    (StatusCode::BAD_REQUEST, "".to_string());
+                },
+            };
+        },
+        Err(_) => {
+            (StatusCode::BAD_REQUEST, "".to_string());
+        },
+    }
 }
 
 fn create_json_response(json: JsonValue) -> impl IntoResponse {
@@ -108,18 +132,10 @@ fn create_json_response(json: JsonValue) -> impl IntoResponse {
     (headers, json::stringify(json))
 }
 
-fn decode_hash_64(str: String) -> [u8; 64] {
-    let res = general_purpose::STANDARD_NO_PAD.decode(str)
-        .expect("Decode hash failed");
-    let array:[u8; 64] = res.try_into().expect("Error on converting");
-    array
-}
-
-fn decode_hash_32(str: String) -> [u8; 32] {
-    let res = general_purpose::STANDARD_NO_PAD.decode(str)
-        .expect("Decode hash failed");
-    let array:[u8; 32] = res.try_into().expect("Error on converting");
-    array
+fn decode_hash(str: &String) -> Result<Vec<u8>, Error> {
+    general_purpose::STANDARD_NO_PAD
+        .decode(str)
+        .map_err(|_| Error::msg("Error on decoding"))
 }
 
 #[derive(Deserialize)]
