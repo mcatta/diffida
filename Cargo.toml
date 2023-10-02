@@ -1,0 +1,16 @@
+[package]
+name = "diffida"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.6.18"
+shuttle-axum = "0.27.0"
+shuttle-runtime = "0.27.0"
+tokio = "1.28.2"
+tiny-bip39 = { version = "1.0.0"}
+substrate-bip39 = { version = "0.4.4" }
+schnorrkel = {version = "0.9.1" }
+json = { version = "0.12.4" }
+serde = { version = "1.0.188" }
+base64 = { version = "0.21.4" }
