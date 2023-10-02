@@ -22,6 +22,8 @@ jobs:
       
   deploy:
     runs-on: ubuntu-latest
+    needs: test
+    
     steps:
       - uses: shuttle-hq/deploy-action@main
         with:
