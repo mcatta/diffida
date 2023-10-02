@@ -1,12 +1,13 @@
 use std::fs::read_to_string;
 
-use axum::{routing::get, routing::post, Router, response::IntoResponse, http::{HeaderMap, header}, Json};
+use anyhow::{Error, Ok};
+use axum::{routing::get, routing::post, Router, response::IntoResponse, http::{HeaderMap, header, StatusCode}, Json};
 use bip39::{Mnemonic, MnemonicType, Language};
 use json::JsonValue;
 use schnorrkel::{keys, Keypair, Signature, PublicKey};
 use substrate_bip39::mini_secret_from_entropy;
 use serde::Deserialize;
-use base64::{Engine as _, engine::general_purpose};
+use base64::{Engine as _, engine::general_purpose, DecodeError};
 
 #[macro_use]
 extern crate json;
@@ -24,9 +25,11 @@ async fn axum() -> shuttle_axum::ShuttleAxum {
     Ok(router.into())
 }
 
-async fn get_doc_file() -> String {
-    read_to_string("assets/swagger.yml")
-        .expect("Failure fetching the file")
+async fn get_doc_file() -> impl IntoResponse {
+    match read_to_string("assets/swagger.yml") {
+        Ok(content) => (StatusCode::OK, content),
+        Err(_) => (StatusCode::NOT_FOUND, String::new()),
+    }
 }
 
 /**
@@ -49,25 +52,29 @@ async fn generate_seed() -> impl IntoResponse {
  * @param payload Body
  */
 async fn sign_message(Json(payload): Json<SignMessagePayload>) -> impl IntoResponse {
-    let mnemonic: Mnemonic = Mnemonic::from_phrase(&payload.mnemonic.join(" "), LANGUAGE)
-        .expect("Invalid passphrase");
+    let key_pair_result: Result<Keypair, Error> = Mnemonic::from_phrase(&payload.mnemonic.join(" "), LANGUAGE)
+        .map_err(|_| Error::msg("Invalid Mnemonic"))
+        .and_then(|m| mini_secret_from_entropy(m.entropy(), "").map_err(|_|Error::msg("Invalid Secret")))
+        .and_then(|s|Ok(s.expand_to_keypair(keys::ExpansionMode::Uniform)));
 
-    let key_pair: Keypair = mini_secret_from_entropy(mnemonic.entropy(), "")
-        .expect("Invalid KeyPair generation")
-        .expand_to_keypair(keys::ExpansionMode::Uniform);
+    match key_pair_result {
+        Ok(key_pair) => {
+            let signature = key_pair.sign_simple(&[], &payload.message.as_bytes()).to_bytes();
+            let hashed_signature = general_purpose::STANDARD_NO_PAD.encode(signature);
+            let public_key = general_purpose::STANDARD_NO_PAD.encode(key_pair.public.to_bytes());
+        
+            let response = object! {
+                "message": payload.message,
+                "signature": hashed_signature,
+                "public_key": public_key
+            };
 
-    let signature = key_pair.sign_simple(&[], &payload.message.as_bytes())
-        .to_bytes();
-    let hashed_signature = general_purpose::STANDARD_NO_PAD.encode(signature);
-    let public_key = general_purpose::STANDARD_NO_PAD.encode(key_pair.public.to_bytes());
-
-    let response = object! {
-        "message": payload.message,
-        "signature": hashed_signature,
-        "public_key": public_key
-    };
-    
-    create_json_response(response)
+            create_json_response(response);
+        },
+        Err(_) => {
+            (StatusCode::BAD_REQUEST, "".to_string());
+        }
+    }
 }
 
 /**
