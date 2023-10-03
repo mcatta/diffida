@@ -106,10 +106,10 @@ components:
     VerifyRequest:
       type: object
       properties:
-        signature:
+        message:
           type: string
           example: Hello world
-        message:
+        signature:
           type: string
           example: UBYHg5Tgeywbm8K5HHEdIM4jnS8sbrnP+yB0a6oGp1FJnukFxtNFzX8XrmRhm92jzbyxWHxKTMZoyAKG+oJyjA
         public_key:
