@@ -1,18 +1,17 @@
-use std::fs::read_to_string;
+mod vault;
+mod hasher;
 
+use std::fs::read_to_string;
 use anyhow::Error;
 use axum::{routing::get, routing::post, Router, response::IntoResponse, http::{HeaderMap, header, StatusCode}, Json};
-use bip39::{Mnemonic, MnemonicType, Language};
 use json::JsonValue;
-use schnorrkel::{keys, Keypair, Signature, PublicKey};
-use substrate_bip39::mini_secret_from_entropy;
+use schnorrkel::Signature;
 use serde::Deserialize;
-use base64::{Engine, engine::general_purpose};
+use vault::keystore::PublicKey;
 
 #[macro_use]
 extern crate json;
 
-const LANGUAGE: Language = Language::Italian;
 
 #[shuttle_runtime::main]
 async fn axum() -> shuttle_axum::ShuttleAxum {
@@ -36,11 +35,8 @@ async fn get_doc_file() -> impl IntoResponse {
  * Generate a new random menmonic
  */
 async fn generate_seed() -> impl IntoResponse {
-    let mnemonic: Mnemonic = Mnemonic::new(MnemonicType::Words12, LANGUAGE);
-    let words: Vec<&str> = mnemonic.phrase().split(" ").collect();
-
     let response = object! {
-        "mnemonic": words
+        "mnemonic": vault::mnemonic::generate()
     };
     
     create_json_response(response).into_response()
@@ -52,21 +48,17 @@ async fn generate_seed() -> impl IntoResponse {
  * @param payload Body
  */
 async fn sign_message(Json(payload): Json<SignMessagePayload>) -> impl IntoResponse {
-    let key_pair_result: Result<Keypair, Error> = Mnemonic::from_phrase(&payload.mnemonic.join(" "), LANGUAGE)
-        .map_err(|_| Error::msg("Invalid Mnemonic"))
-        .and_then(|m| mini_secret_from_entropy(m.entropy(), "").map_err(|_|Error::msg("Invalid Secret")))
-        .and_then(|s|Ok(s.expand_to_keypair(keys::ExpansionMode::Uniform)));
+    let private_key = vault::keystore::private_key_from_phrase(&payload.mnemonic)
+        .map_err(|_| Error::msg("Invalid Mnemonic"));
 
-    match key_pair_result {
-        Ok(key_pair) => {
-            let signature = key_pair.sign_simple(&[], &payload.message.as_bytes()).to_bytes();
-            let hashed_signature = general_purpose::STANDARD_NO_PAD.encode(signature);
-            let public_key = general_purpose::STANDARD_NO_PAD.encode(key_pair.public.to_bytes());
+    match private_key {
+        Ok(keystore) => {
+            let signature = keystore.sign(&payload.message).to_bytes();
         
             let response: JsonValue = object! {
                 "message": payload.message,
-                "signature": hashed_signature,
-                "public_key": public_key
+                "signature": hasher::base64::encode(&signature),
+                "public_key": hasher::base64::encode(&keystore.public_key().to_bytes())
             };
 
             create_json_response(response).into_response()
@@ -81,31 +73,23 @@ async fn sign_message(Json(payload): Json<SignMessagePayload>) -> impl IntoRespo
  * @param payload
  */
 async fn verify_message(Json(payload): Json<VerifyMessagePayload>) -> impl IntoResponse {
-    let public_key_result: Result<PublicKey, Error> = decode_hash(&payload.public_key)
+    let public_key_result: Result<PublicKey, Error> = hasher::base64::decode(&payload.public_key)
         .and_then(|v: Vec<u8>| -> Result<[u8; 32], _> { 
-            v.as_slice()    
-                .try_into()
-                .map_err(|_| Error::msg("Invalid public key"))
+            v.as_slice().try_into().map_err(|_| Error::msg("Invalid signature key"))
         })
-        .and_then(|h: [u8; 32]| -> Result<PublicKey, _> { 
-            PublicKey::from_bytes(&h).map_err(|_| Error::msg("Invalid public key"))
-        });
+        .and_then(|h|PublicKey::new(h).map_err(|_| Error::msg("Invalid public key")));
 
-    let signature_result: Result<Signature, Error> = decode_hash(&payload.signature)
+    let signature_result: Result<Signature, Error> = hasher::base64::decode(&payload.signature)
         .and_then(|v: Vec<u8>| -> Result<[u8; 64], _> { 
-            v.as_slice()    
-                .try_into()
-                .map_err(|_| Error::msg("Invalid signature key"))
+            v.as_slice().try_into().map_err(|_| Error::msg("Invalid signature key"))
         })
-        .and_then(|h: [u8; 64]| -> Result<Signature, _> { 
-            Signature::from_bytes(&h).map_err(|_| Error::msg("Invalid signature key"))
-        });
+        .and_then(|h| Signature::from_bytes(&h).map_err(|_| Error::msg("Invalid signature key")));
 
     match public_key_result {
         Ok(public_key) => {
             match signature_result {
                 Ok(signature) => {
-                    let matched_signature = public_key.verify_simple(&[], &payload.message.as_bytes(), &signature).is_ok();
+                    let matched_signature = public_key.verify(&payload.message, &signature).is_ok();
                     let response = object! {
                         "message": payload.message,
                         "match": matched_signature
@@ -130,12 +114,6 @@ fn bad_request() -> impl IntoResponse {
     (StatusCode::BAD_REQUEST, "".to_string())
 }
 
-fn decode_hash(str: &String) -> Result<Vec<u8>, Error> {
-    general_purpose::STANDARD_NO_PAD
-        .decode(str)
-        .map_err(|_| Error::msg("Error on decoding"))
-}
-
 #[derive(Deserialize)]
 struct SignMessagePayload {
     message: String,
@@ -150,7 +128,7 @@ struct VerifyMessagePayload {
 }
 
 #[cfg(test)]
-mod tests {
+mod api_tests {
     use tokio::runtime::Runtime;
 
     use super::*;
