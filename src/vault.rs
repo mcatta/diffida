@@ -49,6 +49,7 @@ pub mod keystore {
         /**
          * Sign a message and return the signature
          */
+        #[inline]
         pub fn sign(&self, message: &String) -> Signature {
             self.key_pair.sign_simple(&[], &message.as_bytes())
         }
@@ -56,6 +57,7 @@ pub mod keystore {
         /**
          * Get the public key
          */
+        #[inline]
         pub fn public_key(&self) -> PublicKey {
             PublicKey::new(self.key_pair.public.to_bytes()).unwrap()
         }
