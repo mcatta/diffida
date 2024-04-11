@@ -3,7 +3,15 @@ mod hasher;
 
 use std::fs::read_to_string;
 use anyhow::Error;
-use axum::{routing::get, routing::post, Router, response::IntoResponse, http::{HeaderMap, header, StatusCode}, Json};
+use axum::{
+    routing::{get, post},
+    Router, 
+    response::IntoResponse, 
+    http::{
+        HeaderMap, header, StatusCode
+    }, 
+    Json
+};
 use json::JsonValue;
 use schnorrkel::Signature;
 use serde::Deserialize;
