@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo outdated:*)",
+      "Bash(cargo update:*)",
+      "Bash(cargo search:*)",
+      "Bash(cargo check:*)",
+      "Bash(rustup update:*)",
+      "Bash(rustc:*)",
+      "Bash(xcode-select:*)",
+      "Bash(sudo xcode-select:*)",
+      "Bash(cargo test:*)"
+    ]
+  }
+}
