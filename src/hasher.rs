@@ -12,8 +12,9 @@ pub mod base64 {
     }
 }
 
+#[cfg(test)]
 mod hasher_tess {
-    use crate::hasher;
+    use super::base64;
 
     #[test]
     fn test_base64_encode() {
@@ -21,7 +22,7 @@ mod hasher_tess {
         let input = "Hello World!";
 
         // When
-        let result = hasher::base64::encode(input.as_bytes());
+        let result = base64::encode(input.as_bytes());
 
         // Then
         assert_eq!(result, "SGVsbG8gV29ybGQh");
@@ -33,7 +34,7 @@ mod hasher_tess {
         let input = "SGVsbG8gV29ybGQh";
 
         // When
-        let result = hasher::base64::decode(input).unwrap();
+        let result = base64::decode(input).unwrap();
 
         // Then
         assert_eq!(result, "Hello World!".as_bytes());

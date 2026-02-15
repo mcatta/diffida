@@ -3,13 +3,13 @@ mod hasher;
 
 use std::fs::read_to_string;
 use anyhow::Error;
-use axum::{
+use shuttle_axum::axum::{
     routing::{get, post},
-    Router, 
-    response::IntoResponse, 
+    Router,
+    response::IntoResponse,
     http::{
         HeaderMap, header, StatusCode
-    }, 
+    },
     Json
 };
 use json::JsonValue;
